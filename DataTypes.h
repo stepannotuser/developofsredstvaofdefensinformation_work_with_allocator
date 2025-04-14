@@ -2,7 +2,7 @@
 #define _DATA_TYPES_H
 
 #if WIN32
-	#include "windows.h"
+	#include "windows.h"						// i use windows
 #else
 	typedef signed char INT8;
 	typedef unsigned char UINT8;
