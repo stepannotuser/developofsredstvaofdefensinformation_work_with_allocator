@@ -5,9 +5,22 @@
 
 //------------------------------------------------------------------------------
 // Constructor
+
+/* Initsializiruyem razmer bloka: yesli razmer bloka men'she, chem razmer ukazatelya (sizeof(long*)), 
+to ustanavlivayem minimal'nyy razmer bloka ravnym razmeru ukazatelya, inache ispol'zuyem zadannyy razmer.
+
+Ustanavlivayem ob"yekt m_name (imya allokatora).
+
+V zavisimosti ot togo, peredan li parametr memory, vybirayem rezhim raboty allokatora:
+STATIC_POOL: yesli pamyat' peredana vneshne.
+HEAP_POOL: yesli my sozdayem pul iz kuchi (s kolichestvom ob"yektov).
+HEAP_BLOCKS: yesli ne zadano kolichestvo ob"yektov, sozdayem novyy blok po mere neobkhodimosti. */
+
 //------------------------------------------------------------------------------
+
+// razm bloca | kolvo object (in heap, not obazatelno) | ykazatel on vydelennyu memory (if peredali) | name allocator for statistic
 Allocator::Allocator(size_t size, UINT objects, CHAR* memory, const CHAR* name) :
-    m_blockSize(size < sizeof(long*) ? sizeof(long*):size),
+    m_blockSize(size < sizeof(long*) ? sizeof(long*):size),								// min raxm bloca = razm ykazatela
     m_objectSize(size),
     m_maxObjects(objects),
     m_pHead(NULL),
@@ -30,11 +43,11 @@ Allocator::Allocator(size_t size, UINT objects, CHAR* memory, const CHAR* name) 
 		else 
 		{
 			m_pPool = (CHAR*)new CHAR[m_blockSize * m_maxObjects];
-			m_allocatorMode = HEAP_POOL;
+			m_allocatorMode = HEAP_POOL;									// pool from heap
 		}
 	}
 	else
-		m_allocatorMode = HEAP_BLOCKS;
+		m_allocatorMode = HEAP_BLOCKS;										// heap mode
 }
 
 //------------------------------------------------------------------------------
@@ -46,10 +59,10 @@ Allocator::~Allocator()
 	// destroy each individual block
 	if (m_allocatorMode == HEAP_POOL)
 		delete [] m_pPool;
-	else if (m_allocatorMode == HEAP_BLOCKS)
+	else if (m_allocatorMode == HEAP_BLOCKS)									// if heap, delete all blocks
 	{
 		while(m_pHead)
-			delete [] (CHAR*)Pop();
+			delete [] (CHAR*)Pop();										// delete all from free-list
 	}
 }
 
@@ -58,10 +71,10 @@ Allocator::~Allocator()
 //------------------------------------------------------------------------------
 void* Allocator::Allocate(size_t size)
 {
-    assert(size <= m_objectSize);
+    assert(size <= m_objectSize);											// chek razmer_a
 	
     // If can't obtain existing block then get a new one
-    void* pBlock = Pop();
+    void* pBlock = Pop();												 // if no free blocks:
     if (!pBlock)
     {
         // If using a pool method then get block from pool,
@@ -76,14 +89,14 @@ void* Allocator::Allocate(size_t size)
             else
             {
                 // Get the pointer to the new handler
-                std::new_handler handler = std::set_new_handler(0);
+                std::new_handler handler = std::set_new_handler(0);							// obrabotchik error_ov
                 std::set_new_handler(handler);
 
                 // If a new handler is defined, call it
                 if (handler)
                     (*handler)();
                 else
-                    assert(0);
+                    assert(0);												// break();
             }
         }
         else
@@ -93,14 +106,14 @@ void* Allocator::Allocate(size_t size)
         }
     }
 
-    m_blocksInUse++;
+    m_blocksInUse++;													 // schetchiki
     m_allocations++;
 	
-    return pBlock;
+    return pBlock;													 // ykazatel
 }
 
 //------------------------------------------------------------------------------
-// Deallocate
+// Deallocate														// vozvrat in free-list
 //------------------------------------------------------------------------------
 void Allocator::Deallocate(void* pBlock)
 {
@@ -110,17 +123,17 @@ void Allocator::Deallocate(void* pBlock)
 }
 
 //------------------------------------------------------------------------------
-// Push
+// Push															// go block to free-list
 //------------------------------------------------------------------------------
 void Allocator::Push(void* pMemory)
 {
-    Block* pBlock = (Block*)pMemory;
+    Block* pBlock = (Block*)pMemory;											// privedenie ykazatela
     pBlock->pNext = m_pHead;
-    m_pHead = pBlock;
+    m_pHead = pBlock;													 // a new head of heap   0_o
 }
 
 //------------------------------------------------------------------------------
-// Pop
+// Pop															
 //------------------------------------------------------------------------------
 void* Allocator::Pop()
 {
