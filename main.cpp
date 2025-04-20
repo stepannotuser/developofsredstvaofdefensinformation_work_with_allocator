@@ -1,3 +1,11 @@
+/*
+File > Open Folder
+(Ctrl+Shift+P) → CMake: Select a Kit
+CMake: Configure
+CMake: Build
+CMake: Run
+*/
+
 # Copyright (c) 2022 David Lafreniere  
 # MIT License  
 # Этот файл содержит модификации, внесенные в 2025 году.
@@ -53,7 +61,8 @@ static void out_of_memory()
 
 typedef void* (*AllocFunc)(int size);
 typedef void (*DeallocFunc)(void* ptr);
-void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc);
+void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc, int f);
+void BenchmarkDefault(const char* name, int f);
 void* AllocHeap(int size);
 void DeallocHeap(void* ptr);
 void* AllocStaticPool(int size);
@@ -63,16 +72,21 @@ void DeallocHeapBlocks(void* ptr);
 
 //------------------------------------------------------------------------------
 // main
+
+/*
+MyClass* obj1 = new MyClass();       
+MyClass* obj2 = ::new MyClass();      
+*/
+
 //------------------------------------------------------------------------------
+
 int main(void)
 {
 	std::set_new_handler(out_of_memory);
 
-	// Allocate MyClass using fixed block allocator
 	MyClass* myClass = new MyClass();
 	delete myClass;
 
-	// Allocate 100 bytes in fixed block allocator, then deallocate
 	void* memory1 = allocatorHeapBlocks.Allocate(100);
 	allocatorHeapBlocks.Deallocate(memory1);
 
@@ -88,15 +102,30 @@ int main(void)
 	void* memory5 = allocatorStaticPool2.Allocate(sizeof(MyClass));
 	allocatorStaticPool2.Deallocate(memory5);
 
-	Benchmark("Heap (Run 1)", AllocHeap, DeallocHeap);
-	Benchmark("Heap (Run 2)", AllocHeap, DeallocHeap);
-	Benchmark("Heap (Run 3)", AllocHeap, DeallocHeap);
-	Benchmark("Static Pool (Run 1)", AllocStaticPool, DeallocStaticPool);
-	Benchmark("Static Pool (Run 2)", AllocStaticPool, DeallocStaticPool);
-	Benchmark("Static Pool (Run 3)", AllocStaticPool, DeallocStaticPool);
-	Benchmark("Heap Blocks (Run 1)", AllocHeapBlocks, DeallocHeapBlocks);
-	Benchmark("Heap Blocks (Run 2)", AllocHeapBlocks, DeallocHeapBlocks);
-	Benchmark("Heap Blocks (Run 3)", AllocHeapBlocks, DeallocHeapBlocks);
+//	0-> only TOTAL TIME, 1-> all info
+int flag = 0; 
+	
+	BenchmarkAllocator("Heap (Run 1)", AllocHeap, DeallocHeap, flag);
+BenchmarkDefault("Standard new/delete (Run 1)", flag);
+	BenchmarkAllocator("Heap (Run 2)", AllocHeap, DeallocHeap, flag);
+BenchmarkDefault("Standard new/delete (Run 2)", flag);
+	BenchmarkAllocator("Heap (Run 3)", AllocHeap, DeallocHeap, flag);
+BenchmarkDefault("Standard new/delete (Run 3)", flag);
+
+	BenchmarkAllocator("Static Pool (Run 1)", AllocStaticPool, DeallocStaticPool, flag);
+BenchmarkDefault("Standard new/delete (Run 1)", flag);
+	BenchmarkAllocator("Static Pool (Run 2)", AllocStaticPool, DeallocStaticPool, flag);
+BenchmarkDefault("Standard new/delete (Run 2)", flag);
+	BenchmarkAllocator("Static Pool (Run 3)", AllocStaticPool, DeallocStaticPool, flag);
+BenchmarkDefault("Standard new/delete (Run 3)", flag);
+
+	BenchmarkAllocator("Heap Blocks (Run 1)", AllocHeapBlocks, DeallocHeapBlocks, flag);
+BenchmarkDefault("Standard new/delete (Run 1)", flag);
+	BenchmarkAllocator("Heap Blocks (Run 2)", AllocHeapBlocks, DeallocHeapBlocks, flag);
+BenchmarkDefault("Standard new/delete (Run 2)", flag);
+	BenchmarkAllocator("Heap Blocks (Run 3)", AllocHeapBlocks, DeallocHeapBlocks, flag);
+BenchmarkDefault("Standard new/delete (Run 3)", flag);
+	
 	return 0;
 }
 
@@ -151,7 +180,7 @@ void DeallocHeapBlocks(void* ptr)
 //------------------------------------------------------------------------------
 // Benchmark
 //------------------------------------------------------------------------------
-void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc)
+void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc, int f)
 {
 #if WIN32
 	LARGE_INTEGER StartingTime, EndingTime, ElapsedMicroseconds, TotalElapsedMicroseconds= {0};
@@ -169,7 +198,9 @@ void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc)
 	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 	ElapsedMicroseconds.QuadPart *= 1000000;
 	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
 	std::cout << name << " allocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
 	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
 
 	// Deallocate MAX_BLOCKS blocks (every other one)
@@ -180,7 +211,9 @@ void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc)
 	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 	ElapsedMicroseconds.QuadPart *= 1000000;
 	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
 	std::cout << name << " deallocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
 	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
 
 	// Allocate MAX_BLOCKS blocks MAX_BLOCK_SIZE sized blocks
@@ -191,7 +224,9 @@ void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc)
 	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 	ElapsedMicroseconds.QuadPart *= 1000000;
 	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
 	std::cout << name << " allocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
 	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
 
 	// Deallocate MAX_BLOCKS blocks (every other one)
@@ -202,7 +237,9 @@ void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc)
 	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 	ElapsedMicroseconds.QuadPart *= 1000000;
 	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
 	std::cout << name << " deallocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
 	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
 
 	// Deallocate MAX_BLOCKS blocks 
@@ -213,12 +250,96 @@ void Benchmark(const char* name, AllocFunc allocFunc, DeallocFunc deallocFunc)
 	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 	ElapsedMicroseconds.QuadPart *= 1000000;
 	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
 	std::cout << name << " deallocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
 	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
 
 	std::cout << name << " TOTAL TIME: " << TotalElapsedMicroseconds.QuadPart << std::endl;
 
 	SetProcessPriorityBoost(GetCurrentProcess(), false);
+#endif
+}
+
+void BenchmarkDefault(const char* name, int f)
+{
+#if WIN32
+	LARGE_INTEGER StartingTime, EndingTime, ElapsedMicroseconds, TotalElapsedMicroseconds = { 0 };
+	LARGE_INTEGER Frequency;
+
+	void* memoryPtrs[MAX_BLOCKS];
+	void* memoryPtrs2[MAX_BLOCKS];
+
+	QueryPerformanceFrequency(&Frequency);
+	if(f){
+	std::cout << "Running: " << name << std::endl;
+	}
+	// Allocate MAX_BLOCKS blocks (2048 байт)
+	QueryPerformanceCounter(&StartingTime);
+	for (int i = 0; i < MAX_BLOCKS; i++)
+		memoryPtrs[i] = ::new char[MAX_BLOCK_SIZE / 2];
+	QueryPerformanceCounter(&EndingTime);
+	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+	ElapsedMicroseconds.QuadPart *= 1000000;
+	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
+	std::cout << name << " allocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
+	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
+
+	// Deallocate половину
+	QueryPerformanceCounter(&StartingTime);
+	for (int i = 0; i < MAX_BLOCKS; i += 2)
+		::delete[] static_cast<char*>(memoryPtrs[i]);
+	QueryPerformanceCounter(&EndingTime);
+	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+	ElapsedMicroseconds.QuadPart *= 1000000;
+	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
+	std::cout << name << " deallocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
+	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
+
+	// Allocate снова, но по 4096 байт
+	QueryPerformanceCounter(&StartingTime);
+	for (int i = 0; i < MAX_BLOCKS; i++)
+		memoryPtrs2[i] = ::new char[MAX_BLOCK_SIZE];
+	QueryPerformanceCounter(&EndingTime);
+	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+	ElapsedMicroseconds.QuadPart *= 1000000;
+	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
+	std::cout << name << " allocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
+	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
+
+	// Освобождаем вторую половину
+	QueryPerformanceCounter(&StartingTime);
+	for (int i = 1; i < MAX_BLOCKS; i += 2)
+		::delete[] static_cast<char*>(memoryPtrs[i]);
+	QueryPerformanceCounter(&EndingTime);
+	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+	ElapsedMicroseconds.QuadPart *= 1000000;
+	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
+	std::cout << name << " deallocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
+	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
+
+	// Освобождаем последние
+	QueryPerformanceCounter(&StartingTime);
+	for (int i = MAX_BLOCKS - 1; i >= 0; i--)
+		::delete[] static_cast<char*>(memoryPtrs2[i]);
+	QueryPerformanceCounter(&EndingTime);
+	ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+	ElapsedMicroseconds.QuadPart *= 1000000;
+	ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+	if(f){
+	std::cout << name << " deallocate time: " << ElapsedMicroseconds.QuadPart << std::endl;
+	}
+	TotalElapsedMicroseconds.QuadPart += ElapsedMicroseconds.QuadPart;
+
+	std::cout << name << " TOTAL TIME: " << TotalElapsedMicroseconds.QuadPart << std::endl;
 #endif
 }
 
